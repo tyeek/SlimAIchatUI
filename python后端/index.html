@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        .chat-container {
+            width: 100%;
+            height: 100vh;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 2.5em;
+            line-height: 1.5;
+            word-wrap: break-word;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .user-message {
+            background-color: #e0f7fa;
+            align-self: flex-end;
+        }
+
+        .ai-message {
+            background-color: #f1f8e9;
+            align-self: flex-start;
+        }
+
+        .chat-input {
+            padding: 10px;
+            border-top: 1px solid #ccc;
+            display: flex;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .chat-input button {
+            padding: 8px 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .chat-input button:hover {
+            background-color: #0056b3;
+        }
+
+        .loading {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-top-color: #007BFF;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">AI Chat</div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="message ai-message">欢迎使用 AI 聊天！有什么问题尽管问。</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="输入你的问题...">
+            <button id="send-button">发送</button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        window.onload = () => userInput.focus();
+
+        sendButton.addEventListener('click', async () => {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            const userMessage = document.createElement('div');
+            userMessage.classList.add('message', 'user-message');
+            userMessage.textContent = message;
+            chatMessages.appendChild(userMessage);
+
+            const aiMessage = document.createElement('div');
+            aiMessage.classList.add('message', 'ai-message');
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.classList.add('loading');
+            aiMessage.appendChild(loadingDiv);
+
+            chatMessages.appendChild(aiMessage);
+
+            userInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let result = '';
+            let firstChunkReceived = false;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    aiMessage.innerHTML = result;
+                    aiMessage.removeChild(loadingDiv);
+                    break;
+                }
+                const chunk = decoder.decode(value);
+                result += chunk;
+
+                if (!firstChunkReceived) {
+                    aiMessage.innerHTML = '';
+                    firstChunkReceived = true;
+                }
+
+                aiMessage.textContent = result;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') sendButton.click();
+        });
+    </script>
+</body>
+</html>
